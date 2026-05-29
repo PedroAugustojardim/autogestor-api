@@ -53,7 +53,11 @@ export class VehicleController {
     }
 
     const { marca, modelo, ano, cor, apelido } = req.body;
-    Object.assign(vehicle, { marca, modelo, ano, cor, apelido });
+    if (marca !== undefined) vehicle.marca = marca;
+    if (modelo !== undefined) vehicle.modelo = modelo;
+    if (ano !== undefined) vehicle.ano = ano;
+    if (cor !== undefined) vehicle.cor = cor;
+    if (apelido !== undefined) vehicle.apelido = apelido;
     await repo().save(vehicle);
     res.json(vehicle);
   }
