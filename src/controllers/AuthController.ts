@@ -82,7 +82,13 @@ export class AuthController {
       relations: ['user'],
     });
 
-    if (!rt || rt.expiresAt < new Date()) {
+    if (!rt) {
+      res.status(401).json({ error: 'Refresh token inválido ou expirado' });
+      return;
+    }
+    if (rt.expiresAt < new Date()) {
+      rt.revoked = true;
+      await tokenRepo().save(rt);
       res.status(401).json({ error: 'Refresh token inválido ou expirado' });
       return;
     }
