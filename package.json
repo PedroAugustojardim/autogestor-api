@@ -29,6 +29,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/bull": "^4.10.0",
     "@types/cors": "^2.8.17",
