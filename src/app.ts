@@ -13,6 +13,7 @@ dotenv.config();
 
 const app = express();
 
+app.set('trust proxy', 1); // Railway/Heroku/Render ficam atrás de proxy reverso
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
