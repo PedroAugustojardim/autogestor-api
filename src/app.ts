@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import vehicleRoutes from './routes/vehicle.routes';
 import userRoutes from './routes/user.routes';
 import { categoryRouter, expenseRouter } from './routes/expense.routes';
+import reportRoutes from './routes/report.routes';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1', categoryRouter);          // GET /api/v1/expense-categories
 app.use('/api/v1/vehicles', expenseRouter);  // /api/v1/vehicles/:id/expenses
+app.use('/api/v1/vehicles', reportRoutes);   // relatórios por veículo
 app.use('/api/v1/vehicles', vehicleRoutes);  // CRUD de veículos
 
 export default app;
