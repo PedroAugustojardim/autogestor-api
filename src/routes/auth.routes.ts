@@ -9,6 +9,7 @@ const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
   message: { error: 'Muitas tentativas. Aguarde 1 minuto.' },
+  validate: { trustProxy: false }, // Railway usa proxy reverso; trust proxy definido em app.ts
 });
 
 router.post('/register', (req, res) => controller.register(req, res));
