@@ -9,7 +9,7 @@ const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
   message: { error: 'Muitas tentativas. Aguarde 1 minuto.' },
-  validate: false, // desabilita validacoes internas (Railway usa proxy reverso)
+  // express-rate-limit v6 — sem validacao agressiva de trust proxy
 });
 
 router.post('/register', (req, res) => controller.register(req, res));
