@@ -15,5 +15,6 @@ expenseRouter.use(authMiddleware);
 expenseRouter.post('/:id/expenses',         (req, res) => ctrl.create(req, res));
 expenseRouter.get('/:id/expenses/summary',  (req, res) => ctrl.summary(req, res));
 expenseRouter.get('/:id/expenses',          (req, res) => ctrl.list(req, res));
+expenseRouter.get('/:id/expenses/:eid',     (req, res) => ctrl.findOne(req, res));
 expenseRouter.put('/:id/expenses/:eid',     (req, res) => ctrl.update(req, res));
 expenseRouter.delete('/:id/expenses/:eid',  (req, res) => ctrl.remove(req, res));

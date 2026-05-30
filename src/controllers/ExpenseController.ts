@@ -25,6 +25,18 @@ export class ExpenseController {
     res.json(cats);
   }
 
+  // GET /vehicles/:id/expenses/:eid
+  async findOne(req: AuthRequest, res: Response): Promise<void> {
+    const vehicleId = Number(req.params.id);
+    const expId     = Number(req.params.eid);
+    if (!await ownsVehicle(vehicleId, req.userId!)) {
+      res.status(404).json({ error: 'Veículo não encontrado' }); return;
+    }
+    const expense = await expRepo().findOne({ where: { id: expId, vehicleId }, relations: ['category'] });
+    if (!expense) { res.status(404).json({ error: 'Gasto não encontrado' }); return; }
+    res.json(expense);
+  }
+
   // POST /vehicles/:id/expenses
   async create(req: AuthRequest, res: Response): Promise<void> {
     const vehicleId = Number(req.params.id);
@@ -32,6 +44,18 @@ export class ExpenseController {
       res.status(404).json({ error: 'Veículo não encontrado' }); return;
     }
     const { categoryId, valor, data, descricao, kmAtual, litros, precoLitro, tipoCombustivel } = req.body;
+
+    if (!valor || Number(valor) <= 0) {
+      res.status(400).json({ error: 'O valor deve ser maior que zero' }); return;
+    }
+    if (!categoryId || !data) {
+      res.status(400).json({ error: 'categoryId e data são obrigatórios' }); return;
+    }
+    const category = await catRepo().findOneBy({ id: Number(categoryId), ativo: true });
+    if (!category) {
+      res.status(400).json({ error: 'Categoria não encontrada' }); return;
+    }
+
     const expense = expRepo().create({
       vehicleId, categoryId, valor, data, descricao, kmAtual, litros, precoLitro, tipoCombustivel,
     });
