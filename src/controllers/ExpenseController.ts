@@ -2,17 +2,12 @@ import { Response } from 'express';
 import { Between, In } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Expense } from '../entities/Expense';
-import { Vehicle } from '../entities/Vehicle';
 import { ExpenseCategory } from '../entities/ExpenseCategory';
 import { AuthRequest } from '../middleware/auth';
+import { ownsVehicle } from '../utils/ownership';
 
 const expRepo = () => AppDataSource.getRepository(Expense);
-const vRepo  = () => AppDataSource.getRepository(Vehicle);
 const catRepo = () => AppDataSource.getRepository(ExpenseCategory);
-
-async function ownsVehicle(vehicleId: number, userId: number): Promise<Vehicle | null> {
-  return vRepo().findOneBy({ id: vehicleId, userId });
-}
 
 export class ExpenseController {
   // GET /expense-categories?tipo=carro
@@ -45,12 +40,6 @@ export class ExpenseController {
     }
     const { categoryId, valor, data, descricao, kmAtual, litros, precoLitro, tipoCombustivel } = req.body;
 
-    if (!valor || Number(valor) <= 0) {
-      res.status(400).json({ error: 'O valor deve ser maior que zero' }); return;
-    }
-    if (!categoryId || !data) {
-      res.status(400).json({ error: 'categoryId e data são obrigatórios' }); return;
-    }
     const category = await catRepo().findOneBy({ id: Number(categoryId), ativo: true });
     if (!category) {
       res.status(400).json({ error: 'Categoria não encontrada' }); return;

@@ -25,6 +25,12 @@ export class User {
   @Column({ name: 'is_admin', default: false })
   isAdmin!: boolean;
 
+  @Column({ default: false })
+  blocked!: boolean;
+
+  @Column({ name: 'last_login_at', type: 'datetime', nullable: true })
+  lastLoginAt!: Date | null;
+
   @Column({ name: 'notifications_enabled', default: true })
   notificationsEnabled!: boolean;
 

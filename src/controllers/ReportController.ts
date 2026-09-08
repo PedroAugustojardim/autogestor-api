@@ -2,15 +2,10 @@ import { Response } from 'express';
 import { Between } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Expense } from '../entities/Expense';
-import { Vehicle } from '../entities/Vehicle';
 import { AuthRequest } from '../middleware/auth';
+import { ownsVehicle } from '../utils/ownership';
 
 const expRepo  = () => AppDataSource.getRepository(Expense);
-const vRepo    = () => AppDataSource.getRepository(Vehicle);
-
-async function ownsVehicle(vehicleId: number, userId: number): Promise<Vehicle | null> {
-  return vRepo().findOneBy({ id: vehicleId, userId });
-}
 
 function monthRange(mes: number, ano: number) {
   const lastDay = new Date(ano, mes, 0).getDate();
@@ -162,5 +157,63 @@ export class ReportController {
     }
 
     res.json({ ano, totalAno: Number(totalAno.toFixed(2)), meses });
+  }
+
+  // GET /vehicles/:id/reports/pdf?mes=5&ano=2026
+  // Dados agregados pro relatório em PDF: veículo, totais, categorias e a lista de gastos do período
+  async pdf(req: AuthRequest, res: Response): Promise<void> {
+    const vehicleId = Number(req.params.id);
+    const vehicle = await ownsVehicle(vehicleId, req.userId!);
+    if (!vehicle) {
+      res.status(404).json({ error: 'Veículo não encontrado' }); return;
+    }
+
+    const now = new Date();
+    const mes = Number(req.query.mes ?? now.getMonth() + 1);
+    const ano = Number(req.query.ano ?? now.getFullYear());
+    const { start, end } = monthRange(mes, ano);
+
+    const expenses = await expRepo().find({
+      where: { vehicleId, data: Between(start, end) },
+      relations: ['category'],
+      order: { data: 'ASC' },
+    });
+
+    const total = expenses.reduce((s, e) => s + Number(e.valor), 0);
+
+    const porCategoria: Record<string, { nome: string; icone: string | null; total: number; percentual: number }> = {};
+    for (const e of expenses) {
+      const nome = e.category?.nome ?? 'Outros';
+      if (!porCategoria[nome]) porCategoria[nome] = { nome, icone: e.category?.icone ?? null, total: 0, percentual: 0 };
+      porCategoria[nome].total += Number(e.valor);
+    }
+    const categorias = Object.values(porCategoria).map((c) => ({
+      ...c,
+      total: Number(c.total.toFixed(2)),
+      percentual: total > 0 ? Number(((c.total / total) * 100).toFixed(1)) : 0,
+    })).sort((a, b) => b.total - a.total);
+
+    const label = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+    res.json({
+      veiculo: {
+        tipo: vehicle.tipo,
+        marca: vehicle.marca,
+        modelo: vehicle.modelo,
+        ano: vehicle.ano,
+        apelido: vehicle.apelido,
+      },
+      periodo: { mes, ano, label },
+      total: Number(total.toFixed(2)),
+      quantidade: expenses.length,
+      categorias,
+      gastos: expenses.map((e) => ({
+        data: e.data,
+        categoria: e.category?.nome ?? 'Outros',
+        descricao: e.descricao,
+        valor: Number(e.valor),
+      })),
+      geradoEm: new Date().toISOString(),
+    });
   }
 }
