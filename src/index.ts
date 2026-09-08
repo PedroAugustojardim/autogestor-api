@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import app from './app';
 import { AppDataSource } from './config/database';
+import { startReminderWorker } from './workers/reminderWorker';
+import { startConsultaWorker } from './workers/consultaWorker';
 
 // Captura erros do express-rate-limit causados por proxy reverso (Railway/Heroku)
 // sem este handler o processo morre com ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
@@ -22,6 +24,8 @@ const PORT = process.env.PORT || 3000;
 AppDataSource.initialize()
   .then(() => {
     console.log('✅ Banco de dados conectado');
+    startReminderWorker();
+    startConsultaWorker();
     app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     });
