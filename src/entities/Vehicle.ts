@@ -42,6 +42,14 @@ export class Vehicle {
   @Column({ type: 'varchar', length: 50, nullable: true })
   apelido!: string | null;
 
+  // Usados só pelo job diário de consultas (consultaWorker) pra detectar "multa
+  // nova" comparando contagens — não são dado de negócio, é estado interno do job.
+  @Column({ name: 'last_fine_check_at', type: 'datetime', nullable: true })
+  lastFineCheckAt!: Date | null;
+
+  @Column({ name: 'last_known_fine_count', type: 'int', nullable: true })
+  lastKnownFineCount!: number | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
