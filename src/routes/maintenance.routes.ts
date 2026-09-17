@@ -19,8 +19,10 @@ const reminderCtrl = new ReminderController();
 // no router, inclusive as destinadas aos outros — já causou 401/403 indevido em
 // rotas de outros routers montados no mesmo prefixo antes de ser corrigido aqui.
 export const maintenanceRouter = Router({ mergeParams: true });
-maintenanceRouter.post('/:id/maintenance',        authMiddleware, authenticatedLimiter, validate(createMaintenanceSchema), asyncHandler((req, res) => maintCtrl.create(req, res)));
+maintenanceRouter.post('/:id/maintenance',         authMiddleware, authenticatedLimiter, validate(createMaintenanceSchema), asyncHandler((req, res) => maintCtrl.create(req, res)));
 maintenanceRouter.get('/:id/maintenance',          authMiddleware, authenticatedLimiter, asyncHandler((req, res) => maintCtrl.list(req, res)));
+// Precisa vir antes de '/:id/maintenance/:mid' — senão "predict" seria capturado como :mid.
+maintenanceRouter.get('/:id/maintenance/predict',  authMiddleware, authenticatedLimiter, asyncHandler((req, res) => maintCtrl.predict(req, res)));
 maintenanceRouter.get('/:id/maintenance/:mid',     authMiddleware, authenticatedLimiter, asyncHandler((req, res) => maintCtrl.getOne(req, res)));
 maintenanceRouter.put('/:id/maintenance/:mid',     authMiddleware, authenticatedLimiter, validate(updateMaintenanceSchema), asyncHandler((req, res) => maintCtrl.update(req, res)));
 maintenanceRouter.delete('/:id/maintenance/:mid',  authMiddleware, authenticatedLimiter, asyncHandler((req, res) => maintCtrl.remove(req, res)));
