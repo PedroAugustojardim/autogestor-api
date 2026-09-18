@@ -59,7 +59,11 @@ export class MaintenanceController {
       res.status(404).json({ error: 'Veículo não encontrado' }); return;
     }
 
-    const tipo = typeof req.query.tipo === 'string' ? req.query.tipo : '';
+    // Normaliza pra NFC antes de comparar — o mesmo texto visível ("Troca de
+    // óleo") pode chegar em NFD (o + acento combinante) dependendo de como o
+    // cliente digitou/serializou, e aí `MAINTENANCE_INTERVALS[tipo]` (lookup de
+    // objeto, sem normalização) falha silenciosamente e cai em "sem previsão".
+    const tipo = typeof req.query.tipo === 'string' ? req.query.tipo.normalize('NFC') : '';
     const baseData = typeof req.query.data === 'string' ? req.query.data : '';
     if (!tipo || !/^\d{4}-\d{2}-\d{2}$/.test(baseData)) {
       res.status(400).json({ error: 'tipo e data são obrigatórios' }); return;

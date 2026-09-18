@@ -24,4 +24,15 @@ export const AppDataSource = new DataSource({
   // timezone (bem plausível: dev local em America/Sao_Paulo, MySQL gerenciado em
   // UTC), o limite efetivo de expiração desliza pelo offset entre os dois.
   timezone: 'Z',
+  // Achado rodando contra um MySQL de verdade pela primeira vez: colunas
+  // `type: 'date'` (Expense.data, Maintenance.data, Reminder.dataPrevista) vinham
+  // um dia atrasadas em qualquer processo rodando num timezone local negativo
+  // (ex.: America/Sao_Paulo). Causa: o mysql2 lê a DATE já respeitando `timezone:
+  // 'Z'` acima e devolve um Date UTC-midnight, mas o TypeORM reconverte esse Date
+  // pra string usando os getters *locais* do JS (getFullYear/getMonth/getDate),
+  // não os UTC — em UTC-3, meia-noite UTC cai no dia anterior no relógio local.
+  // `dateStrings: ['DATE']` faz o driver devolver DATE como string crua
+  // ("AAAA-MM-DD"), sem nunca virar Date/sofrer conversão de timezone nenhuma.
+  // DATETIME/TIMESTAMP (createdAt, expiresAt etc.) continuam como Date normal.
+  extra: { dateStrings: ['DATE'] },
 });
