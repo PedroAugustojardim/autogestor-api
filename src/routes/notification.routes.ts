@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { NotificationController } from '../controllers/NotificationController';
 import { authMiddleware } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validateIdParams } from '../middleware/validateParams';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 
 const router = Router();
+validateIdParams(router);
 const ctrl = new NotificationController();
 
 router.use(authMiddleware, authenticatedLimiter);

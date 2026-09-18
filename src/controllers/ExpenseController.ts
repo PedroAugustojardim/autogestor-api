@@ -12,7 +12,8 @@ const catRepo = () => AppDataSource.getRepository(ExpenseCategory);
 export class ExpenseController {
   // GET /expense-categories?tipo=carro
   async listCategories(req: AuthRequest, res: Response): Promise<void> {
-    const tipo = req.query.tipo as string | undefined;
+    // `?tipo[]=a&tipo[]=b` chega como array e virava filtro inválido no TypeORM (500).
+    const tipo = typeof req.query.tipo === 'string' ? req.query.tipo : undefined;
     const where = tipo
       ? [{ tipoVeiculo: 'todos' as const, ativo: true }, { tipoVeiculo: tipo as any, ativo: true }]
       : [{ ativo: true }];

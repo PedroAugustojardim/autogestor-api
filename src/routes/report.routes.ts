@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { ReportController } from '../controllers/ReportController';
 import { authMiddleware } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validateIdParams } from '../middleware/validateParams';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 
 const ctrl = new ReportController();
 const router = Router({ mergeParams: true });
+validateIdParams(router);
 
 // Middleware por rota, não `router.use(...)` em bloco — este router compartilha o
 // prefixo /api/v1/vehicles com outros routers; um `.use()` sem path rodaria em

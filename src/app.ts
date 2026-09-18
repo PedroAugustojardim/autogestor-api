@@ -30,15 +30,30 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// Requisição de navegador com Origin fora da allowlist recebe 403 limpo, sem chegar em
+// nenhuma rota. Antes isso era um `callback(new Error(...))` do próprio cors, que
+// caía no handler global como 500 E virava um evento no Sentry por requisição — sem
+// login e sem limiter (roda antes de todos), dava pra queimar a cota do Sentry e
+// cegar a detecção só mandando `Origin: qualquer-coisa` em loop.
+//
+// Rejeitar aqui (e não só omitir o Access-Control-Allow-Origin) também é o que impede
+// CSRF nos endpoints de cookie (/auth/refresh, /auth/logout, com SameSite=None em
+// produção): o navegador sempre manda Origin em POST cross-site, então uma página
+// de terceiros não consegue disparar essas rotas. O app mobile não manda Origin
+// (não é navegador) e passa direto.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !allowedOrigins.includes(origin)) {
+    res.status(403).json({ error: 'Origem não permitida' });
+    return;
+  }
+  next();
+});
+
 app.use(cors({
-  origin: (origin, callback) => {
-    // Sem origin = requisição server-to-server ou ferramenta tipo curl/Postman — permitir.
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origem não permitida por CORS'));
-    }
-  },
+  // A checagem de verdade é o middleware acima; aqui só devolve o veredito pro cors
+  // montar os headers, sem nunca lançar erro (um `new Error` aqui vira 500 + Sentry).
+  origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)),
   credentials: true,
 }));
 
@@ -51,6 +66,17 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 if (process.env.NODE_ENV === 'production') {
+  // Host canônico vem do APP_URL (já obrigatório em produção pro webhook do Mercado
+  // Pago), não do header Host da requisição — esse é escolhido por quem faz o request,
+  // e refleti-lo no Location era um open redirect (`Host: evil.example` → 308 pra
+  // https://evil.example/...). Sem APP_URL válido cai no comportamento antigo.
+  let canonicalHost: string | null = null;
+  try {
+    if (process.env.APP_URL) canonicalHost = new URL(process.env.APP_URL).host;
+  } catch {
+    canonicalHost = null;
+  }
+
   app.use((req, res, next) => {
     if (req.headers['x-forwarded-proto'] === 'https') {
       next();
@@ -58,7 +84,7 @@ if (process.env.NODE_ENV === 'production') {
       // 308 (não 301) preserva método e corpo no redirect — um 301 em POST faz a
       // maioria dos clientes reenviar como GET sem corpo, o que quebraria o
       // webhook do Mercado Pago se esse cabeçalho não chegar corretamente.
-      res.redirect(308, `https://${req.headers.host}${req.originalUrl}`);
+      res.redirect(308, `https://${canonicalHost ?? req.headers.host}${req.originalUrl}`);
     }
   });
 }
@@ -93,7 +119,16 @@ Sentry.setupExpressErrorHandler(app);
 
 // Handler de erro global — toda rota async agora usa asyncHandler, que encaminha
 // qualquer rejeição pra cá em vez de virar unhandled rejection e derrubar o processo.
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
+  // Erros que os próprios middlewares já classificam como culpa do client (JSON
+  // malformado e corpo acima do limite vindos do body-parser, URL com percent-encoding
+  // inválido) carregam um status 4xx — responder 500 pra isso mentia pro client e
+  // sujava o log com "erro interno" que qualquer um dispara com um corpo quebrado.
+  const status = err.status ?? err.statusCode;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    res.status(status).json({ error: status === 413 ? 'Corpo da requisição grande demais' : 'Requisição inválida' });
+    return;
+  }
   logger.error({ err }, 'erro não tratado em rota');
   res.status(500).json({ error: 'Erro interno do servidor' });
 });

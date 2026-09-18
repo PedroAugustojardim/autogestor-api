@@ -89,7 +89,8 @@ export class AdminController {
   async listUsers(req: AuthRequest, res: Response): Promise<void> {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
-    const search = (req.query.search as string | undefined)?.trim();
+    // `?search[]=a` / `?search[$ne]=a` chegam como array/objeto (qs) — só string vale.
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
 
     const qb = userRepo().createQueryBuilder('u')
       .select(['u.id', 'u.name', 'u.email', 'u.plano', 'u.blocked', 'u.isAdmin', 'u.lastLoginAt', 'u.createdAt'])

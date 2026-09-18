@@ -3,6 +3,7 @@ import { ConsultaController } from '../controllers/ConsultaController';
 import { authMiddleware } from '../middleware/auth';
 import { requirePremium } from '../middleware/premium';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validateIdParams } from '../middleware/validateParams';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 
 const ctrl = new ConsultaController();
@@ -14,6 +15,7 @@ const ctrl = new ConsultaController();
 // 403 de usuário gratuito antes de sequer chegar no router certo — quebrava
 // cadastro/gestão de veículo pra todo usuário do plano gratuito.
 export const consultaRouter = Router({ mergeParams: true });
+validateIdParams(consultaRouter);
 
 consultaRouter.get('/:id/fines',   authMiddleware, authenticatedLimiter, requirePremium, asyncHandler((req, res) => ctrl.fines(req, res)));
 consultaRouter.get('/:id/ipva',    authMiddleware, authenticatedLimiter, requirePremium, asyncHandler((req, res) => ctrl.ipva(req, res)));

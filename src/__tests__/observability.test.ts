@@ -76,7 +76,7 @@ describe('rate limit registra evento de segurança', () => {
     expect(recordSecurityEvent).toHaveBeenCalledWith(
       'rate_limit_exceeded',
       expect.objectContaining({ limiter: 'login', path: '/login' }),
-      { alert: true },
+      { alert: true, throttleKey: 'login' },
     );
   });
 

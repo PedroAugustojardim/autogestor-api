@@ -32,16 +32,8 @@ export class UserController {
       return;
     }
 
-    const { name, email } = req.body;
+    const { name } = req.body;
     if (name) user.name = name;
-    if (email && email !== user.email) {
-      const exists = await repo().findOneBy({ email });
-      if (exists) {
-        res.status(409).json({ error: 'Email já em uso' });
-        return;
-      }
-      user.email = email;
-    }
 
     await repo().save(user);
     res.json({ id: user.id, name: user.name, email: user.email, plano: user.plano });
@@ -78,6 +70,14 @@ export class UserController {
       res.status(404).json({ error: 'Usuário não encontrado' });
       return;
     }
+
+    // Reautenticação: o access token sozinho não basta pra uma ação irreversível.
+    const { currentPassword } = req.body;
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      res.status(401).json({ error: 'Senha atual incorreta' });
+      return;
+    }
+
     // Libera o email (unique constraint) e marca o soft delete numa única UPDATE
     // (softDelete() setaria deletedAt sozinho, então fazemos os dois campos juntos
     // aqui em vez de duas chamadas separadas). As duas escritas viram uma

@@ -3,6 +3,7 @@ import { ExpenseController } from '../controllers/ExpenseController';
 import { authMiddleware } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validateIdParams } from '../middleware/validateParams';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 import { createExpenseSchema, updateExpenseSchema } from '../schemas/expense.schema';
 
@@ -23,6 +24,7 @@ categoryRouter.get('/', authMiddleware, authenticatedLimiter, asyncHandler((req,
 // repetida à toa (a cada barra decrementava a mesma cota por usuário várias
 // vezes numa só requisição lógica).
 export const expenseRouter = Router({ mergeParams: true });
+validateIdParams(expenseRouter);
 expenseRouter.post('/:id/expenses',         authMiddleware, authenticatedLimiter, validate(createExpenseSchema), asyncHandler((req, res) => ctrl.create(req, res)));
 expenseRouter.get('/:id/expenses/summary',  authMiddleware, authenticatedLimiter, asyncHandler((req, res) => ctrl.summary(req, res)));
 expenseRouter.get('/:id/expenses',          authMiddleware, authenticatedLimiter, asyncHandler((req, res) => ctrl.list(req, res)));

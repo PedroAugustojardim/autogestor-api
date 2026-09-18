@@ -4,6 +4,7 @@ import { ReminderController } from '../controllers/ReminderController';
 import { authMiddleware } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validateIdParams } from '../middleware/validateParams';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 import {
   createMaintenanceSchema, updateMaintenanceSchema,
@@ -19,6 +20,7 @@ const reminderCtrl = new ReminderController();
 // no router, inclusive as destinadas aos outros — já causou 401/403 indevido em
 // rotas de outros routers montados no mesmo prefixo antes de ser corrigido aqui.
 export const maintenanceRouter = Router({ mergeParams: true });
+validateIdParams(maintenanceRouter);
 maintenanceRouter.post('/:id/maintenance',         authMiddleware, authenticatedLimiter, validate(createMaintenanceSchema), asyncHandler((req, res) => maintCtrl.create(req, res)));
 maintenanceRouter.get('/:id/maintenance',          authMiddleware, authenticatedLimiter, asyncHandler((req, res) => maintCtrl.list(req, res)));
 // Precisa vir antes de '/:id/maintenance/:mid' — senão "predict" seria capturado como :mid.
@@ -29,6 +31,7 @@ maintenanceRouter.delete('/:id/maintenance/:mid',  authMiddleware, authenticated
 
 // Montado em /api/v1/vehicles — mesmo motivo acima.
 export const reminderRouter = Router({ mergeParams: true });
+validateIdParams(reminderRouter);
 reminderRouter.post('/:id/reminders',                authMiddleware, authenticatedLimiter, validate(createReminderSchema), asyncHandler((req, res) => reminderCtrl.create(req, res)));
 reminderRouter.get('/:id/reminders',                  authMiddleware, authenticatedLimiter, asyncHandler((req, res) => reminderCtrl.list(req, res)));
 reminderRouter.get('/:id/reminders/next',             authMiddleware, authenticatedLimiter, asyncHandler((req, res) => reminderCtrl.next(req, res)));

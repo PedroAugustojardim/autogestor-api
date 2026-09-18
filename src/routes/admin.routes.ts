@@ -3,6 +3,7 @@ import { AdminController } from '../controllers/AdminController';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { validateIdParams } from '../middleware/validateParams';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 import { blockUserSchema, setUserPlanSchema, generateInviteCodesSchema } from '../schemas/admin.schema';
 
@@ -13,6 +14,7 @@ const ctrl = new AdminController();
 // todo o resto da API depois do bug de roteamento de 2026-09-04 — ver
 // project_autogestor_routing_bug_2026-09-04 na memória).
 const router = Router();
+validateIdParams(router);
 
 router.get('/stats',                    authMiddleware, authenticatedLimiter, adminMiddleware, asyncHandler((req, res) => ctrl.stats(req, res)));
 router.get('/users',                    authMiddleware, authenticatedLimiter, adminMiddleware, asyncHandler((req, res) => ctrl.listUsers(req, res)));

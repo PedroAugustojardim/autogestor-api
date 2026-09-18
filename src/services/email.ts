@@ -58,6 +58,34 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   });
 }
 
+export async function sendVerificationEmail(to: string, code: string): Promise<void> {
+  if (!resend) {
+    // Mesma regra do reset de senha: em produção a falta de chave é erro de
+    // configuração e não pode cair no fallback que loga o código em texto claro.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('RESEND_API_KEY não configurada em produção — não é seguro logar o código de verificação');
+    }
+    console.log(`[DEV] RESEND_API_KEY não configurada — código de verificação para ${to}: ${code}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Confirme seu email — AutoGestor',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #1B5E20;">Confirme seu email</h2>
+        <p>Use o código abaixo no app AutoGestor para confirmar seu cadastro:</p>
+        <p style="background: #F1F8E9; border-radius: 8px; padding: 16px; font-family: monospace;
+                   font-size: 28px; letter-spacing: 6px; text-align: center; margin: 16px 0;">${code}</p>
+        <p style="color: #757575; font-size: 13px;">Esse código expira em 15 minutos. Se você não criou
+           uma conta no AutoGestor, pode ignorar este email com segurança.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendReminderEmail(
   to: string,
   reminder: { tipo: string; dataPrevista: string },

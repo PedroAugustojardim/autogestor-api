@@ -21,6 +21,16 @@ export const registerSchema = z.object({
   inviteCode: z.string().trim().min(1, 'Código de convite é obrigatório'),
 });
 
+// Só dígitos, exatamente 6 — qualquer outra coisa é 400 antes de tocar no banco.
+export const verifyEmailSchema = z.object({
+  email: emailSchema,
+  code: z.string().trim().regex(/^\d{6}$/, 'O código tem 6 dígitos'),
+});
+
+export const resendVerificationSchema = z.object({
+  email: emailSchema,
+});
+
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Senha é obrigatória'),

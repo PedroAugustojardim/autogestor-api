@@ -31,6 +31,23 @@ export class User {
   @Column({ name: 'last_login_at', type: 'datetime', nullable: true })
   lastLoginAt!: Date | null;
 
+  // null = email ainda não confirmado; enquanto for null a conta não consegue logar.
+  @Column({ name: 'email_verified_at', type: 'datetime', nullable: true })
+  emailVerifiedAt!: Date | null;
+
+  // Hash do código de 6 dígitos enviado por email (nunca o código em si — mesmo padrão
+  // de resetPasswordToken). Só existe enquanto a conta está aguardando confirmação.
+  @Column({ type: 'varchar', name: 'email_verification_code', length: 64, nullable: true })
+  emailVerificationCode!: string | null;
+
+  @Column({ name: 'email_verification_expires', type: 'datetime', nullable: true })
+  emailVerificationExpires!: Date | null;
+
+  // Tentativas erradas do código atual — 6 dígitos são só 1 milhão de combinações, então o
+  // limite por código (não só o rate limit por IP) é o que impede força bruta distribuída.
+  @Column({ name: 'email_verification_attempts', type: 'int', default: 0 })
+  emailVerificationAttempts!: number;
+
   @Column({ name: 'notifications_enabled', default: true })
   notificationsEnabled!: boolean;
 

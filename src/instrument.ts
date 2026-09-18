@@ -8,6 +8,21 @@ import * as Sentry from '@sentry/node';
 // (Railway) as variáveis já vêm do ambiente, então lá nunca foi um problema.
 dotenv.config();
 
+const MAX_EVENTS_PER_WINDOW = 60;
+const EVENT_WINDOW_MS = 60_000;
+let windowStart = Date.now();
+let eventsInWindow = 0;
+
+function allowEvent(): boolean {
+  const now = Date.now();
+  if (now - windowStart >= EVENT_WINDOW_MS) {
+    windowStart = now;
+    eventsInWindow = 0;
+  }
+  eventsInWindow += 1;
+  return eventsInWindow <= MAX_EVENTS_PER_WINDOW;
+}
+
 // Precisa ser o PRIMEIRO import de src/index.ts (antes até de reflect-metadata) —
 // a auto-instrumentação HTTP do SDK precisa rodar antes de `express` ser
 // importado por qualquer coisa, e app.ts importa express na primeira linha.
@@ -32,12 +47,20 @@ Sentry.init({
   integrations: (defaults) =>
     defaults.filter((i) => i.name !== 'OnUncaughtException' && i.name !== 'OnUnhandledRejection'),
   beforeSend(event) {
+    // Teto de eventos: uma rede de segurança pra qualquer caminho de erro (500) que
+    // um atacante sem login descubra — sem isso, o mesmo request malicioso em loop
+    // gasta a cota grátis do Sentry (5k eventos/mês) e os eventos reais somem.
+    // Descarta acima de MAX_EVENTS_PER_WINDOW por janela e devolve `null` (o SDK não
+    // envia); a trilha completa continua nos logs do pino.
+    if (!allowEvent()) return null;
+
     if (event.request) {
       delete event.request.cookies;
       delete event.request.data;
       if (event.request.headers) {
         delete event.request.headers.authorization;
         delete event.request.headers.cookie;
+        delete event.request.headers['x-signature'];
       }
     }
     return event;

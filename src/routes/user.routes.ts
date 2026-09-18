@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { authenticatedLimiter } from '../middleware/rateLimit';
 import {
   updateMeSchema,
+  deleteAccountSchema,
   changePasswordSchema,
   updateNotificationsSchema,
 } from '../schemas/user.schema';
@@ -17,7 +18,7 @@ router.use(authMiddleware, authenticatedLimiter);
 
 router.get('/me',                   asyncHandler((req, res) => controller.getMe(req, res)));
 router.put('/me',                   validate(updateMeSchema),           asyncHandler((req, res) => controller.updateMe(req, res)));
-router.delete('/me',                asyncHandler((req, res) => controller.deleteMe(req, res)));
+router.delete('/me',                validate(deleteAccountSchema),      asyncHandler((req, res) => controller.deleteMe(req, res)));
 router.put('/me/password',          validate(changePasswordSchema),     asyncHandler((req, res) => controller.changePassword(req, res)));
 router.put('/me/notifications',     validate(updateNotificationsSchema),asyncHandler((req, res) => controller.updateNotifications(req, res)));
 

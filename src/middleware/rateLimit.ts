@@ -7,7 +7,7 @@ import { recordSecurityEvent } from '../utils/securityEvent';
 // pré-autenticação. authenticatedLimiter fica de fora de propósito: é o limiter
 // mais usado em uso legítimo pesado (polling do admin, sincronização do mobile),
 // alertar nele seria ruído garantido.
-const ALERTABLE_LIMITERS = new Set(['login', 'register', 'forgotPassword']);
+const ALERTABLE_LIMITERS = new Set(['login', 'register', 'forgotPassword', 'verifyEmail']);
 
 // HISTÓRICO IMPORTANTE — leia antes de mexer aqui:
 // Este projeto já teve rate limiting via express-rate-limit em produção (Railway) e ele foi
@@ -38,7 +38,7 @@ const limiterResponse = (error: string, limiterName: string) => ({
     recordSecurityEvent(
       'rate_limit_exceeded',
       { limiter: limiterName, ip: req.ip, path: req.path },
-      { alert: ALERTABLE_LIMITERS.has(limiterName) },
+      { alert: ALERTABLE_LIMITERS.has(limiterName), throttleKey: limiterName },
     );
     res.status(429).json({ error });
   },
@@ -60,6 +60,23 @@ export const forgotPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
   ...limiterResponse('Muitas tentativas. Tente novamente em 1 hora.', 'forgotPassword'),
+});
+
+// Confirmação de email por código de 6 dígitos: além deste limite por IP, cada código
+// aceita no máximo VERIFICATION_MAX_ATTEMPTS tentativas erradas (contadas no banco) —
+// o limite por IP sozinho não pararia um ataque distribuído contra um código só.
+export const verifyEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  ...limiterResponse('Muitas tentativas de confirmação. Tente novamente em 15 minutos.', 'verifyEmail'),
+});
+
+// Reenvio do código: cada chamada dispara um email, então o teto é baixo (igual ao
+// esqueci-a-senha) pra não virar canal de spam contra a caixa de terceiros.
+export const resendVerificationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  ...limiterResponse('Muitas solicitações. Tente novamente em 1 hora.', 'resendVerification'),
 });
 
 // /auth/refresh e /auth/logout são pré-auth (ainda não tem req.userId, então não dá

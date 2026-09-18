@@ -25,7 +25,14 @@ process.on('uncaughtException', (err) => {
   Sentry.flush(2000).finally(() => process.exit(1));
 });
 
+// Em produção o RESEND_API_KEY também é obrigatório: o cadastro só vira sessão depois do
+// código enviado por email, então sem a chave ninguém novo consegue entrar (e sem isso
+// o sintoma seria "o app não deixa ninguém logar", bem longe da causa). Falhar no boot
+// aponta direto pra variável que falta. Resend só entrega pra qualquer destinatário com
+// um domínio verificado (RESEND_FROM_EMAIL) — com onboarding@resend.dev só chega no email
+// dono da conta Resend.
 const REQUIRED_ENV = ['DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+if (process.env.NODE_ENV === 'production') REQUIRED_ENV.push('RESEND_API_KEY');
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length > 0) {
   logger.error({ missing }, 'variáveis de ambiente obrigatórias não definidas');

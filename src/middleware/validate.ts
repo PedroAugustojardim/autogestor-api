@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
+// Registra as mensagens de validação em português (efeito colateral) — todo schema passa por aqui.
+import '../schemas/errorMap';
 
 export function validate(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
