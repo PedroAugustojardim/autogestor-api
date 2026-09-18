@@ -29,6 +29,13 @@ export function formatDateBR(isoDate: string): string {
 
 export async function sendPasswordResetEmail(to: string, token: string): Promise<void> {
   if (!resend) {
+    // Em produção, RESEND_API_KEY ausente é erro de configuração, não motivo pra
+    // cair silenciosamente no fallback de dev — esse fallback loga o token de
+    // reset em texto claro (equivale a uma credencial de takeover de conta por
+    // 1h) direto no console/log do servidor. Falha alto em vez de vazar o token.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('RESEND_API_KEY não configurada em produção — não é seguro logar o token de reset');
+    }
     console.log(`[DEV] RESEND_API_KEY não configurada — reset token para ${to}: ${token}`);
     return;
   }
