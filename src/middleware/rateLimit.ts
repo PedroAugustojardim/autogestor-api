@@ -1,6 +1,13 @@
 import rateLimit from 'express-rate-limit';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from './auth';
+import { recordSecurityEvent } from '../utils/securityEvent';
+
+// Limiters cujo estouro vale alerta — força bruta/enumeração contra superfície
+// pré-autenticação. authenticatedLimiter fica de fora de propósito: é o limiter
+// mais usado em uso legítimo pesado (polling do admin, sincronização do mobile),
+// alertar nele seria ruído garantido.
+const ALERTABLE_LIMITERS = new Set(['login', 'register', 'forgotPassword']);
 
 // HISTÓRICO IMPORTANTE — leia antes de mexer aqui:
 // Este projeto já teve rate limiting via express-rate-limit em produção (Railway) e ele foi
@@ -18,29 +25,41 @@ import { AuthRequest } from './auth';
 //   4. O catch de ERR_ERL_UNEXPECTED_X_FORWARDED_FOR em index.ts continua como rede de segurança.
 // Mesmo assim, isso NUNCA foi testado contra o Railway de verdade (conta expirada) — tratar o
 // primeiro deploy como canário: acompanhar os logs do healthcheck e de /auth/login de perto.
-const limiterResponse = (error: string) => ({
+// handler substitui a resposta default do express-rate-limit por uma que também
+// registra o evento de segurança (trilha de auditoria sempre; alerta só pros
+// limiters em ALERTABLE_LIMITERS) — mesma resposta 429 de antes, só com o
+// registro a mais.
+const limiterResponse = (error: string, limiterName: string) => ({
   standardHeaders: true,
   legacyHeaders: false,
   validate: false,
   message: { error },
+  handler: (req: Request, res: Response) => {
+    recordSecurityEvent(
+      'rate_limit_exceeded',
+      { limiter: limiterName, ip: req.ip, path: req.path },
+      { alert: ALERTABLE_LIMITERS.has(limiterName) },
+    );
+    res.status(429).json({ error });
+  },
 });
 
 export const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  ...limiterResponse('Muitas tentativas de login. Tente novamente em 1 minuto.'),
+  ...limiterResponse('Muitas tentativas de login. Tente novamente em 1 minuto.', 'login'),
 });
 
 export const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
-  ...limiterResponse('Muitas tentativas de cadastro. Tente novamente em 1 hora.'),
+  ...limiterResponse('Muitas tentativas de cadastro. Tente novamente em 1 hora.', 'register'),
 });
 
 export const forgotPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
-  ...limiterResponse('Muitas tentativas. Tente novamente em 1 hora.'),
+  ...limiterResponse('Muitas tentativas. Tente novamente em 1 hora.', 'forgotPassword'),
 });
 
 // /auth/refresh e /auth/logout são pré-auth (ainda não tem req.userId, então não dá
@@ -50,7 +69,7 @@ export const forgotPasswordLimiter = rateLimit({
 export const refreshLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
-  ...limiterResponse('Muitas requisições. Tente novamente em 1 minuto.'),
+  ...limiterResponse('Muitas requisições. Tente novamente em 1 minuto.', 'refresh'),
 });
 
 // Aplicado depois de authMiddleware nas rotas autenticadas — chave por usuário, não por IP,
@@ -59,5 +78,5 @@ export const authenticatedLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,
   keyGenerator: (req: Request) => String((req as AuthRequest).userId),
-  ...limiterResponse('Muitas requisições. Tente novamente em 1 minuto.'),
+  ...limiterResponse('Muitas requisições. Tente novamente em 1 minuto.', 'authenticated'),
 });

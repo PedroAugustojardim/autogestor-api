@@ -1,6 +1,7 @@
 import { initializeApp, cert, App } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import * as dotenv from 'dotenv';
+import { logger } from '../utils/logger';
 
 // Este módulo lê process.env.FIREBASE_SERVICE_ACCOUNT_JSON já na importação
 // (abaixo), então não pode depender de outro módulo ter carregado o .env antes.
@@ -17,7 +18,7 @@ try {
     app = initializeApp({ credential: cert(serviceAccount) });
   }
 } catch (err) {
-  console.error('[push] FIREBASE_SERVICE_ACCOUNT_JSON inválido — push desabilitado:', (err as Error).message);
+  logger.error({ err }, '[push] FIREBASE_SERVICE_ACCOUNT_JSON inválido — push desabilitado');
 }
 
 export function isPushConfigured(): boolean {
@@ -38,6 +39,6 @@ export async function sendPushNotification(fcmToken: string, title: string, body
   } catch (err) {
     // Token inválido/expirado é normal (app desinstalado, token rotacionado) — não
     // deve derrubar o job que chamou isto, só logar e seguir.
-    console.error(`[push] falha ao enviar notificação:`, (err as Error).message);
+    logger.error({ err }, '[push] falha ao enviar notificação');
   }
 }

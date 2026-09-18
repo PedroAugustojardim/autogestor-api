@@ -1,5 +1,6 @@
 import { IConsultaProvider } from './IConsultaProvider';
 import { MockProvider } from './MockProvider';
+import { logger } from '../../utils/logger';
 
 export * from './IConsultaProvider';
 
@@ -13,7 +14,7 @@ export function getConsultaProvider(): IConsultaProvider {
     case 'mock':
       return new MockProvider();
     default:
-      console.warn(`[consulta] CONSULTA_PROVIDER="${provider}" ainda não tem implementação — usando MockProvider`);
+      logger.warn({ provider }, '[consulta] CONSULTA_PROVIDER sem implementação — usando MockProvider');
       return new MockProvider();
   }
 }

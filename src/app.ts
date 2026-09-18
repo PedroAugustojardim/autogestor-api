@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import * as dotenv from 'dotenv';
+import * as Sentry from '@sentry/node';
 import authRoutes from './routes/auth.routes';
 import vehicleRoutes from './routes/vehicle.routes';
 import userRoutes from './routes/user.routes';
@@ -14,6 +15,8 @@ import notificationRoutes from './routes/notification.routes';
 import { subscriptionRouter, subscriptionPublicRouter, mercadoPagoWebhookRouter } from './routes/subscription.routes';
 import { consultaRouter } from './routes/consulta.routes';
 import adminRoutes from './routes/admin.routes';
+import clientErrorRoutes from './routes/clientError.routes';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -81,11 +84,17 @@ app.use('/api/v1/subscriptions', subscriptionRouter);
 app.use('/api/v1/subscriptions', subscriptionPublicRouter);
 app.use('/api/v1/webhooks', mercadoPagoWebhookRouter);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/client-errors', clientErrorRoutes);
+
+// Precisa vir depois de todas as rotas e antes do handler de erro abaixo —
+// captura qualquer exceção que chegue até aqui e cria um evento no Sentry antes
+// do handler final responder ao cliente.
+Sentry.setupExpressErrorHandler(app);
 
 // Handler de erro global — toda rota async agora usa asyncHandler, que encaminha
 // qualquer rejeição pra cá em vez de virar unhandled rejection e derrubar o processo.
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
+  logger.error({ err }, 'erro não tratado em rota');
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 

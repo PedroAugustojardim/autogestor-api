@@ -4,6 +4,7 @@ import { Reminder } from '../entities/Reminder';
 import { Notification } from '../entities/Notification';
 import { sendReminderEmail, formatDateBR } from '../services/email';
 import { isOverdue } from '../utils/reminders';
+import { logger } from '../utils/logger';
 
 const JOB_NAME = 'check-due-reminders';
 const NOTIFY_WINDOW_DAYS = 30; // começa a avisar a partir de 30 dias antes da data prevista
@@ -64,7 +65,7 @@ async function checkDueReminders(): Promise<void> {
     } catch (err) {
       // Uma falha de envio (ex.: Resend fora do ar) não pode travar os demais
       // lembretes do mesmo job — loga e segue pro próximo.
-      console.error(`[reminderWorker] falha ao notificar lembrete ${reminder.id}:`, err);
+      logger.error({ reminderId: reminder.id, err }, '[reminderWorker] falha ao notificar lembrete');
     }
   }
 }
@@ -77,5 +78,5 @@ export function startReminderWorker(): void {
   // servidor (Railway) roda em UTC por padrão — sem isso, "8h" seria 5h em SP.
   reminderQueue
     .add(JOB_NAME, {}, { repeat: { cron: '0 8 * * *', tz: 'America/Sao_Paulo' }, jobId: JOB_NAME })
-    .catch((err) => console.error('[reminderWorker] falha ao agendar job repetível:', err.message));
+    .catch((err) => logger.error({ err }, '[reminderWorker] falha ao agendar job repetível'));
 }

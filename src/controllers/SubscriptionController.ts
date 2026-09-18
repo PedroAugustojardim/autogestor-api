@@ -5,6 +5,8 @@ import { User } from '../entities/User';
 import { PaymentLog } from '../entities/PaymentLog';
 import { AuthRequest } from '../middleware/auth';
 import { isMercadoPagoConfigured, getPlanPrice, createCheckoutPreference, fetchPayment } from '../services/mercadoPago';
+import { recordSecurityEvent } from '../utils/securityEvent';
+import { logger } from '../utils/logger';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const paymentLogRepo = () => AppDataSource.getRepository(PaymentLog);
@@ -77,7 +79,7 @@ export class SubscriptionController {
   async webhook(req: Request, res: Response): Promise<void> {
     const secret = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
     if (!secret) {
-      console.error('[webhook mercadopago] MERCADO_PAGO_WEBHOOK_SECRET não configurada — recusando notificação');
+      logger.error('[webhook mercadopago] MERCADO_PAGO_WEBHOOK_SECRET não configurada — recusando notificação');
       res.status(503).send();
       return;
     }
@@ -98,7 +100,11 @@ export class SubscriptionController {
       });
     } catch (err) {
       if (err instanceof InvalidWebhookSignatureError) {
-        console.error(`[webhook mercadopago] assinatura inválida (${err.reason}), request-id ${err.requestId}`);
+        recordSecurityEvent(
+          'webhook_signature_invalid',
+          { reason: err.reason, requestId: err.requestId },
+          { alert: true },
+        );
         res.status(401).send();
         return;
       }
@@ -121,7 +127,7 @@ export class SubscriptionController {
     if (!paymentLog) {
       // Referência que não existe (nunca vai existir) — 200 pra não fazer o MP
       // re-tentar pra sempre; não é um erro transitório que vá se resolver sozinho.
-      console.error(`[webhook mercadopago] PaymentLog ${paymentLogId} não encontrado para pagamento MP ${dataId}`);
+      logger.error({ paymentLogId, dataId }, '[webhook mercadopago] PaymentLog não encontrado para pagamento MP');
       res.status(200).send();
       return;
     }

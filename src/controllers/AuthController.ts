@@ -9,6 +9,7 @@ import { InviteCode } from '../entities/InviteCode';
 import { sendPasswordResetEmail } from '../services/email';
 import { hashToken } from '../utils/hashToken';
 import { isTrustedMobileClient } from '../utils/clientDetection';
+import { logger } from '../utils/logger';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const tokenRepo = () => AppDataSource.getRepository(RefreshToken);
@@ -265,7 +266,7 @@ export class AuthController {
     try {
       await sendPasswordResetEmail(email, token);
     } catch (err) {
-      console.error('[forgotPassword] falha ao enviar email de reset:', err);
+      logger.error({ err }, '[forgotPassword] falha ao enviar email de reset');
     }
 
     res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' });

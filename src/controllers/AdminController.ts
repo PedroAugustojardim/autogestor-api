@@ -9,6 +9,7 @@ import { InviteCode } from '../entities/InviteCode';
 import { RefreshToken } from '../entities/RefreshToken';
 import { AuthRequest } from '../middleware/auth';
 import { hashToken } from '../utils/hashToken';
+import { recordSecurityEvent } from '../utils/securityEvent';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const vehicleRepo = () => AppDataSource.getRepository(Vehicle);
@@ -162,6 +163,10 @@ export class AdminController {
       // (mesma limitação já aceita em UserController.deleteMe).
       await tokenRepo().update({ userId: id }, { revoked: true });
     }
+    // alert:false por enquanto — hoje existe 1 admin só (o próprio usuário),
+    // alertar toda ação própria é ruído puro. Vira trilha de auditoria útil pra
+    // reconstrução LGPD; ativar alert quando existir um 2º admin (config, não código).
+    recordSecurityEvent('admin_block_user', { adminId: req.userId, targetUserId: id, blocked });
 
     res.json({ id, blocked });
   }
@@ -182,6 +187,7 @@ export class AdminController {
       });
       await manager.update(RefreshToken, { userId: id }, { revoked: true });
     });
+    recordSecurityEvent('admin_delete_user', { adminId: req.userId, targetUserId: id });
 
     res.status(204).send();
   }
@@ -203,6 +209,7 @@ export class AdminController {
     if (user.isAdmin) { res.status(400).json({ error: 'Não é possível alterar o plano de um administrador' }); return; }
 
     await userRepo().update(id, { plano });
+    recordSecurityEvent('admin_set_user_plan', { adminId: req.userId, targetUserId: id, plano });
     res.json({ id, plano });
   }
 
@@ -240,6 +247,7 @@ export class AdminController {
     const codigos = Array.from({ length: quantidade }, () => crypto.randomBytes(4).toString('hex').toUpperCase());
 
     await inviteRepo().save(codigos.map((code) => inviteRepo().create({ code: hashToken(code), expiresAt })));
+    recordSecurityEvent('admin_generate_invite_codes', { adminId: req.userId, quantidade, diasValidade });
 
     res.status(201).json({ codigos, expiresAt });
   }

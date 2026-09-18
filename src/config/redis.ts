@@ -1,5 +1,7 @@
 import Bull from 'bull';
 import * as dotenv from 'dotenv';
+import * as Sentry from '@sentry/node';
+import { logger } from '../utils/logger';
 
 dotenv.config();
 
@@ -15,8 +17,22 @@ export const consultaQueue = new Bull('consultas', redisUrl);
 // Bull (EventEmitter) derruba o processo com um erro não tratado se 'error' for
 // emitido sem listener — sem isso, o Redis cair levaria a API inteira junto, não só
 // os jobs. Só loga: a API continua servindo HTTP normalmente com o Redis fora.
+//
+// 'failed'/'stalled' não existiam antes — se um job falhasse de verdade (exceção
+// fora do try/catch interno do loop, timeout, job travado), ficava invisível: só
+// aparecia no estado interno do Bull dentro do Redis, sem log de aplicação e sem
+// alerta. Sem 'completed' de propósito: as filas rodam ~1x/dia via cron, "completou"
+// não é sinal de erro, é ruído sem valor de alerta.
 for (const queue of [reminderQueue, consultaQueue]) {
   queue.on('error', (err: NodeJS.ErrnoException) => {
-    console.error(`[bull:${queue.name}] erro de conexão com Redis:`, err.message || err.code || err);
+    logger.error({ queue: queue.name, err }, 'erro de conexão com Redis');
+  });
+  queue.on('failed', (job, err) => {
+    logger.error({ queue: queue.name, jobId: job.id, jobName: job.name, attemptsMade: job.attemptsMade }, 'job falhou');
+    Sentry.captureException(err, { tags: { queue: queue.name, job: job.name } });
+  });
+  queue.on('stalled', (job) => {
+    logger.warn({ queue: queue.name, jobId: job.id, jobName: job.name }, 'job travado (stalled)');
+    Sentry.captureMessage(`Job travado: ${queue.name}/${job.name}`, { level: 'warning', tags: { queue: queue.name } });
   });
 }

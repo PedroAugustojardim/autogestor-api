@@ -4,6 +4,7 @@ import { Vehicle } from '../entities/Vehicle';
 import { Notification } from '../entities/Notification';
 import { getConsultaProvider } from '../services/consulta';
 import { sendPushNotification } from '../services/pushNotification';
+import { logger } from '../utils/logger';
 
 const JOB_NAME = 'check-fines';
 
@@ -55,7 +56,7 @@ async function checkFinesForPremiumVehicles(): Promise<void> {
       });
     } catch (err) {
       // Provider fora do ar pra uma placa não pode travar a checagem das demais.
-      console.error(`[consultaWorker] falha ao checar multas do veículo ${vehicle.id} (placa ${vehicle.placa}):`, err);
+      logger.error({ vehicleId: vehicle.id, placa: vehicle.placa, err }, '[consultaWorker] falha ao checar multas');
     }
   }
 }
@@ -67,5 +68,5 @@ export function startConsultaWorker(): void {
   // deduplicar entre reinícios do processo.
   consultaQueue
     .add(JOB_NAME, {}, { repeat: { cron: '0 8 * * *', tz: 'America/Sao_Paulo' }, jobId: JOB_NAME })
-    .catch((err) => console.error('[consultaWorker] falha ao agendar job repetível:', err.message));
+    .catch((err) => logger.error({ err }, '[consultaWorker] falha ao agendar job repetível'));
 }
