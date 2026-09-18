@@ -82,11 +82,17 @@ export class SubscriptionController {
       return;
     }
 
+    // Mesmo valor usado na validação da assinatura abaixo — o corpo do POST não é
+    // assinado pelo Mercado Pago, só a query string é. Usar um dataId diferente
+    // pra processar (ex.: preferindo o body) abriria brecha pra um corpo alterado
+    // depois da assinatura ainda ser aceito, mesmo a assinatura sendo válida.
+    const dataId = req.query['data.id'] as string | undefined;
+
     try {
       WebhookSignatureValidator.validate({
         xSignature: firstHeaderValue(req.headers['x-signature'] as string | string[] | undefined),
         xRequestId: firstHeaderValue(req.headers['x-request-id'] as string | string[] | undefined),
-        dataId: req.query['data.id'] as string | undefined,
+        dataId,
         secret,
         toleranceSeconds: 300,
       });
@@ -100,7 +106,6 @@ export class SubscriptionController {
     }
 
     const type = (req.body?.type ?? req.query.type) as string | undefined;
-    const dataId = (req.body?.data?.id ?? req.query['data.id']) as string | undefined;
 
     // Outros tipos de notificação (merchant_order etc.) — confirma recebimento sem
     // processar. QR Code também não é assinado e nunca chegaria a passar na validação acima.

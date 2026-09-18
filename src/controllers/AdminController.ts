@@ -197,6 +197,10 @@ export class AdminController {
 
     const user = await userRepo().findOneBy({ id });
     if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
+    // Mesma proteção de blockUser/deleteUser — sem isso, um admin (ou uma conta
+    // admin comprometida) conseguia alterar o plano de outro admin direto pela
+    // API, mesmo a UI escondendo essa opção pra linhas de admin.
+    if (user.isAdmin) { res.status(400).json({ error: 'Não é possível alterar o plano de um administrador' }); return; }
 
     await userRepo().update(id, { plano });
     res.json({ id, plano });
