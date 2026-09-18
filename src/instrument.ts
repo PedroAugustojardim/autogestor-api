@@ -1,4 +1,12 @@
+import * as dotenv from 'dotenv';
 import * as Sentry from '@sentry/node';
+
+// Carrega o .env aqui: este é o primeiro módulo executado, e Sentry.init (abaixo) e
+// o logger (LOG_LEVEL) leem process.env já na importação. Sem isto, em dev local o
+// .env só era carregado depois (app.ts) e SENTRY_DSN/LOG_LEVEL chegavam undefined —
+// o SDK ficava silenciosamente desligado mesmo com o DSN preenchido. Em produção
+// (Railway) as variáveis já vêm do ambiente, então lá nunca foi um problema.
+dotenv.config();
 
 // Precisa ser o PRIMEIRO import de src/index.ts (antes até de reflect-metadata) —
 // a auto-instrumentação HTTP do SDK precisa rodar antes de `express` ser
